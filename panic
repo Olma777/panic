@@ -18,6 +18,12 @@ VERSION="0.1.0"
 # Переопределяемо (тесты/иные механизмы блокировки).
 PANIC_CGSESSION="${PANIC_CGSESSION:-/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession}"
 
+# Каталог shared file lists (Recent items). Переопределяемо для тестов.
+PANIC_SFL_DIR="${PANIC_SFL_DIR:-${HOME}/Library/Application Support/com.apple.sharedfilelist}"
+
+# Cloud-демоны, которых --hard прибивает (точные имена процессов для pkill -x).
+PANIC_CLOUD_DAEMONS=(Dropbox OneDrive bird "Google Drive")
+
 # === BEGIN vendored common (pin: 2e3d2dd5b36251bdcb1a8ffd348b63ece5fa7aab) ===
 # shellcheck shell=bash
 # common.sh — переиспользуемые примитивы экосистемы Paranoid Tools.
@@ -162,8 +168,8 @@ EOF
     ru:unknown_cmd) printf 'Unknown command: %s' "$1" ;;
     en:detach_fail) printf 'could not detach %s (may have open files).' "$1" ;;
     ru:detach_fail) printf 'не удалось размонтировать %s (возможно, открыты файлы).' "$1" ;;
-    en:hard_deferred) echo '--hard is not implemented yet (pack 3): cloud daemons / recent items untouched.' ;;
-    ru:hard_deferred) echo '--hard пока не реализован (pack 3): cloud-демоны / recent items не тронуты.' ;;
+    en:now_hard) echo 'panic --hard: cloud daemons killed, recent items cleared.' ;;
+    ru:now_hard) echo 'panic --hard: cloud-демоны убиты, recent items очищены.' ;;
     en:now_report) printf 'panic: detached %s disk image(s), cleared clipboard, locked screen.' "$1" ;;
     ru:now_report) printf 'panic: размонтировано образов: %s, буфер очищен, экран заперт.' "$1" ;;
     *) echo "$key" ;;
@@ -182,6 +188,20 @@ _mounted_images() {
 # Блокировка экрана через настраиваемый локер.
 _lock_screen() {
   "$PANIC_CGSESSION" -suspend >/dev/null 2>&1 || true
+}
+
+# --hard: прибить известные cloud-демоны (best-effort, отсутствие процесса — не ошибка).
+_kill_cloud_daemons() {
+  local d
+  for d in "${PANIC_CLOUD_DAEMONS[@]}"; do
+    pkill -x "$d" >/dev/null 2>&1 || true
+  done
+}
+
+# --hard: почистить Recent items (shared file lists). ЧЕСТНО: покрывает глобальные
+# списки в PANIC_SFL_DIR; per-app «недавние» внутри приложений этим не стираются.
+_clear_recent_items() {
+  rm -f "$PANIC_SFL_DIR"/*.sfl* 2>/dev/null || true
 }
 
 # Kill-switch: спрятать и запереть. БЕЗ confirm — это режим паники (скорость важнее);
@@ -209,8 +229,14 @@ cmd_now() {
   pbcopy </dev/null >/dev/null 2>&1 || true
   _lock_screen
 
-  if [[ "$hard" == "1" ]]; then warn "$(t hard_deferred)"; fi
+  # 4. --hard: прибить cloud-демоны + почистить Recent items.
+  if [[ "$hard" == "1" ]]; then
+    _kill_cloud_daemons
+    _clear_recent_items
+  fi
+
   info "$(t now_report "$n")"
+  if [[ "$hard" == "1" ]]; then info "$(t now_hard)"; fi
 }
 
 cmd_version() { echo "panic $VERSION"; }
