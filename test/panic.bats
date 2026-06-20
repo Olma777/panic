@@ -28,6 +28,30 @@ setup() {
   [[ "$output" == *"Unknown command"* ]]
 }
 
+@test "--version flag prints version" {
+  run bash "$SCRIPT" --version
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"panic"* ]]
+}
+
+@test "-v flag prints version" {
+  run bash "$SCRIPT" -v
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"panic"* ]]
+}
+
+@test "--help flag prints usage" {
+  run bash "$SCRIPT" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage:"* ]]
+}
+
+@test "-h flag prints usage" {
+  run bash "$SCRIPT" -h
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage:"* ]]
+}
+
 @test "vendored common is present and provides primitives" {
   run bash -c "source '$SCRIPT' 2>/dev/null; type info >/dev/null && type confirm >/dev/null && type require_macos >/dev/null && echo OK"
   [[ "$output" == *"OK"* ]]

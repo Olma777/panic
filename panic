@@ -246,7 +246,7 @@ main() {
   if [[ -z "$cmd" ]]; then usage; exit 1; fi
   shift || true
   case "$cmd" in
-    version)       cmd_version "$@" ;;
+    version|-v|--version) cmd_version "$@" ;;
     help|--help|-h) usage ;;
     now)           cmd_now "$@" ;;
     *) t unknown_cmd "$cmd" >&2; echo >&2; usage >&2; exit 1 ;;
