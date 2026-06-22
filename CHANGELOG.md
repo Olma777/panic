@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-06-22
+
+### Added
+- **Подпись релизов (Ed25519, опциональная):** CI подписывает `SHA256SUMS`, `install.sh`
+  авто-проверяет подпись поверх контрольной суммы (мягкая деградация). Pubkey в `SECURITY.md`.
+- Homebrew `Formula/panic.rb`, `LICENSE`/`SECURITY.md`/`CONTRIBUTING.md`,
+  English-primary README + `README.ru.md`, флаги `-v`/`--version`, `-h`/`--help`.
+
+### Fixed
+- **Офлайн `vendor --check`:** хеш вшитого common-блока против запиннутого SHA, без сети.
+
 ## [0.1.0] — 2026-06-19
 
 Первый функциональный срез: kill-switch на один шаг для macOS.

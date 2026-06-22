@@ -11,7 +11,7 @@
 # в следующих паках; см. README «Scope & limitations».
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.1.1"
 
 # Локер экрана. По умолчанию CGSession -suspend (реальная блокировка до login-window,
 # не зависит от настройки «требовать пароль» — в отличие от pmset/screensaver).
