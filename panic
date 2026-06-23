@@ -136,6 +136,8 @@ fi
 # --- i18n (таблица строк panic; общие примитивы — в vendored common) ---
 t() {
   local key="$1"; shift
+  # Все строки ниже — литеральный display-текст; бэктики в них не подстановка команды.
+  # shellcheck disable=SC2016
   case "$ST_LOCALE:$key" in
     en:usage)
       cat <<'EOF'
