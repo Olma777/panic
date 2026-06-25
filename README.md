@@ -7,6 +7,7 @@ One-step kill-switch — hide and lock everything with a single command.
 [![CI](https://github.com/Di-kairos/panic/actions/workflows/ci.yml/badge.svg)](https://github.com/Di-kairos/panic/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-macOS-blue)
+![windows](https://img.shields.io/badge/Windows-beta-orange)
 ![shellcheck](https://img.shields.io/badge/shellcheck-passing-brightgreen)
 
 Part of the [Paranoid Tools](https://github.com/Di-kairos/paranoid-tools) ecosystem.
@@ -97,10 +98,14 @@ but:
   "require password" setting); overridable via `PANIC_CGSESSION`.
 - It does not pretend to "fully wipe in a second" — that would be a lie.
 
-## Windows equivalent
+## Windows (beta)
 
-Planned as a follow-up: lock the workstation, dismount BitLocker/VeraCrypt volumes, clear
-the clipboard. The port follows the same approach as securetrash/vaultwatch.
+A PowerShell port now exists in [`windows/README.md`](windows/README.md). It mirrors the
+macOS logic — lock the workstation, dismount BitLocker/VeraCrypt volumes, and clear the
+clipboard.
+
+> **Beta:** the Windows port is logic-tested (Pester on CI) but not yet validated on real
+> Windows hardware. See [`windows/README.md`](windows/README.md).
 
 ## License
 

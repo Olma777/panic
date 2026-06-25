@@ -93,10 +93,13 @@ Google Drive) и чистит глобальные Recent items (shared file lis
   настройки «требовать пароль»); переопределяемо через `PANIC_CGSESSION`.
 - не имитирует «полное стирание за секунду» — это была бы ложь.
 
-## Windows-эквивалент
+## Windows (beta)
 
-Планируется во вторую очередь: lock workstation, dismount BitLocker/VeraCrypt-томов,
-очистка clipboard. Порт — как у securetrash/vaultwatch.
+PowerShell-порт уже существует — в [`windows/README.md`](windows/README.md). Он повторяет
+логику macOS — lock workstation, dismount BitLocker/VeraCrypt-томов и очистка clipboard.
+
+> **Beta:** Windows-порт протестирован по логике (Pester на CI), но ещё не проверен на
+> реальном Windows-железе. См. [`windows/README.md`](windows/README.md).
 
 ## Лицензия
 
