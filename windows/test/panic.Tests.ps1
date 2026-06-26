@@ -122,8 +122,9 @@ Describe 'i18n' {
 
 Describe 'CLI surface (child pwsh)' {
     It 'prints the version' {
+        # Version-agnostic: не хардкодим номер, чтобы bump версии не ронял тест.
         $out = & pwsh -NoProfile -File $script:ScriptPath version
-        ($out -join "`n") | Should -Match 'panic 0\.1\.3'
+        ($out -join "`n") | Should -Match 'panic \d+\.\d+\.\d+'
     }
     It 'exits non-zero on an unknown command' {
         & pwsh -NoProfile -File $script:ScriptPath bogus *> $null
