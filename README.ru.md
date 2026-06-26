@@ -17,7 +17,7 @@ securetrash, размонтировать тома, очистить буфер 
 
 ## Установка
 
-Checksum-verified установка с релизного тега — verify-then-run (не доверяй — проверь):
+Checksum-verified установка с релизного тега — verify-then-run (не доверяй — проверяй):
 
 ```bash
 base=https://github.com/Di-kairos/panic/releases/latest/download
