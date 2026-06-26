@@ -11,7 +11,7 @@
 # в следующих паках; см. README «Scope & limitations».
 set -euo pipefail
 
-VERSION="0.1.3"
+VERSION="0.1.4"
 
 # Локер экрана. По умолчанию CGSession -suspend (реальная блокировка до login-window,
 # не зависит от настройки «требовать пароль» — в отличие от pmset/screensaver).
@@ -23,6 +23,14 @@ PANIC_SFL_DIR="${PANIC_SFL_DIR:-${HOME}/Library/Application Support/com.apple.sh
 
 # Cloud-демоны, которых --hard прибивает (точные имена процессов для pkill -x).
 PANIC_CLOUD_DAEMONS=(Dropbox OneDrive bird "Google Drive")
+
+# Глобальный хоткей (`panic hotkey`): чистый Bash глобальный хоткей на macOS невозможен —
+# нужен резидентный слушатель с правом Accessibility. Используем skhd (крошечный hotkey-демон).
+# Конфиг и комбинация по умолчанию переопределяемы (тесты/иной combo).
+SKHD_CONFIG="${SKHD_CONFIG:-${HOME}/.config/skhd/skhdrc}"
+PANIC_HOTKEY_COMBO="${PANIC_HOTKEY_COMBO:-cmd + alt - p}"
+PANIC_HK_BEGIN="# === BEGIN panic hotkey (managed by panic) ==="
+PANIC_HK_END="# === END panic hotkey ==="
 
 # === BEGIN vendored common (pin: 2e3d2dd5b36251bdcb1a8ffd348b63ece5fa7aab) ===
 # shellcheck shell=bash
@@ -147,6 +155,8 @@ Commands:
   status              Read-only preflight: show what `panic now` would affect.
   now [--hard]        Hide & lock now: close vaults, detach volumes, clear
                       clipboard, lock screen. --hard also kills cloud daemons.
+  hotkey <sub>        Global panic hotkey via skhd: install [combo] | uninstall | status.
+                      Default combo: cmd + alt - p. Needs skhd + Accessibility.
   version             Show the version
 
 panic HIDES and LOCKS — it does NOT destroy or wipe swap (use securetrash to
@@ -162,6 +172,8 @@ Commands:
   now [--hard]        Спрятать и запереть сейчас: закрыть vault'ы, размонтировать
                       тома, очистить буфер, заблокировать экран. --hard также
                       прибивает cloud-демоны.
+  hotkey <sub>        Глобальный хоткей паники через skhd: install [combo] | uninstall | status.
+                      Комбинация по умолчанию: cmd + alt - p. Нужны skhd + Accessibility.
   version             Показать версию
 
 panic ПРЯЧЕТ и ЗАПИРАЕТ — НЕ уничтожает и НЕ чистит swap (для уничтожения —
@@ -192,6 +204,22 @@ EOF
     ru:now_hard) echo 'panic --hard: cloud-демоны убиты, recent items очищены.' ;;
     en:now_report) printf 'panic: detached %s disk image(s), cleared clipboard, locked screen.' "$1" ;;
     ru:now_report) printf 'panic: размонтировано образов: %s, буфер очищен, экран заперт.' "$1" ;;
+    en:hk_no_skhd) echo 'skhd not found. Install it: brew install skhd (a tiny global-hotkey daemon).' ;;
+    ru:hk_no_skhd) echo 'skhd не найден. Установи: brew install skhd (крошечный демон глобальных хоткеев).' ;;
+    en:hk_installed) printf 'Global hotkey set: %s → panic now.' "$1" ;;
+    ru:hk_installed) printf 'Глобальный хоткей: %s → panic now.' "$1" ;;
+    en:hk_accessibility) echo 'On first trigger macOS asks to allow skhd in System Settings → Privacy & Security → Accessibility — grant it, or the hotkey will not fire.' ;;
+    ru:hk_accessibility) echo 'При первом срабатывании macOS попросит разрешить skhd в System Settings → Privacy & Security → Accessibility — разреши, иначе хоткей не сработает.' ;;
+    en:hk_uninstalled) echo 'Global panic hotkey removed.' ;;
+    ru:hk_uninstalled) echo 'Глобальный хоткей паники удалён.' ;;
+    en:hk_status_on)  printf 'panic hotkey: installed — %s' "$1" ;;
+    ru:hk_status_on)  printf 'хоткей panic: установлен — %s' "$1" ;;
+    en:hk_status_off) echo 'panic hotkey: not installed' ;;
+    ru:hk_status_off) echo 'хоткей panic: не установлен' ;;
+    en:hk_usage) echo 'Usage: panic hotkey <install [combo] | uninstall | status>' ;;
+    ru:hk_usage) echo 'Usage: panic hotkey <install [combo] | uninstall | status>' ;;
+    en:hk_bad_combo) echo "Invalid combo: must not contain ':' or a newline (e.g. 'cmd + alt - p')." ;;
+    ru:hk_bad_combo) echo "Недопустимая комбинация: без ':' и переводов строк (напр. 'cmd + alt - p')." ;;
     *) echo "$key" ;;
   esac
 }
@@ -299,6 +327,78 @@ cmd_status() {
   done
 }
 
+# Убрать managed-блок panic из skhd-конфига (чужие строки не трогаем). awk сравнивает
+# строки литерально — без возни с экранированием спецсимволов в маркерах.
+_hotkey_strip() {
+  [[ -f "$SKHD_CONFIG" ]] || return 0
+  local tmp; tmp="$(mktemp)"
+  # Удаляем ТОЛЬКО полные managed-блоки (begin..end). Незакрытый блок (повреждённый
+  # конфиг) НЕ режем до конца файла — буферизуем и возвращаем, чтобы не снести чужие строки.
+  awk -v b="$PANIC_HK_BEGIN" -v e="$PANIC_HK_END" '
+    $0==b && !inblock { inblock=1; buf=$0 ORS; next }
+    inblock { buf=buf $0 ORS; if ($0==e) { inblock=0; buf="" } next }
+    { print }
+    END { if (inblock) printf "%s", buf }
+  ' "$SKHD_CONFIG" > "$tmp" && mv "$tmp" "$SKHD_CONFIG"
+}
+
+# (Пере)запустить skhd-сервис best-effort: для уже установленного сервиса хватает restart;
+# на чистой системе — install + start. Ошибки не валят команду (skhd может требовать прав).
+_hotkey_reload() {
+  command -v skhd >/dev/null 2>&1 || return 0
+  skhd --restart-service >/dev/null 2>&1 && return 0
+  skhd --install-service >/dev/null 2>&1 || true
+  skhd --start-service   >/dev/null 2>&1 || true
+}
+
+# Глобальный хоткей паники через skhd. Лаунчер хоткея только дёргает `panic now` —
+# секретов не трогает. Конфиг-блок managed, не затирает чужие биндинги skhd.
+cmd_hotkey() {
+  require_macos
+  local sub="${1:-status}"; shift || true
+  case "$sub" in
+    install)
+      command -v skhd >/dev/null 2>&1 || { err "$(t hk_no_skhd)"; exit 1; }
+      local combo="${1:-$PANIC_HOTKEY_COMBO}"
+      # combo не должен содержать ':' (разделитель skhd) или перевод строки — иначе можно
+      # инжектить лишние строки/биндинги в skhdrc.
+      if [[ "$combo" == *:* || "$combo" == *$'\n'* ]]; then err "$(t hk_bad_combo)"; exit 1; fi
+      local self; self="$(_abspath "${BASH_SOURCE[0]}")"
+      mkdir -p "$(dirname "$SKHD_CONFIG")"
+      _hotkey_strip
+      # Разделитель считаем ДО открытия редиректа (иначе shellcheck SC2094: read+write).
+      local sep=""
+      [[ -s "$SKHD_CONFIG" ]] && sep=$'\n'
+      {
+        printf '%s' "$sep"
+        printf '%s\n' "$PANIC_HK_BEGIN"
+        # Путь закавычен: установка идёт из путей с пробелами (напр. /Volumes/X10 Pro/...);
+        # без кавычек skhd разорвал бы команду по пробелу.
+        printf '%s : "%s" now\n' "$combo" "$self"
+        printf '%s\n' "$PANIC_HK_END"
+      } >> "$SKHD_CONFIG"
+      _hotkey_reload
+      info "$(t hk_installed "$combo")"
+      warn "$(t hk_accessibility)"
+      ;;
+    uninstall)
+      _hotkey_strip
+      _hotkey_reload
+      info "$(t hk_uninstalled)"
+      ;;
+    status)
+      if [[ -f "$SKHD_CONFIG" ]] && grep -qF "$PANIC_HK_BEGIN" "$SKHD_CONFIG"; then
+        local line; line="$(grep -A1 -F "$PANIC_HK_BEGIN" "$SKHD_CONFIG" | tail -1)"
+        info "$(t hk_status_on "$line")"
+      else
+        info "$(t hk_status_off)"
+      fi
+      command -v skhd >/dev/null 2>&1 || warn "$(t hk_no_skhd)"
+      ;;
+    *) err "$(t hk_usage)"; exit 1 ;;
+  esac
+}
+
 cmd_version() { echo "panic $VERSION"; }
 
 main() {
@@ -310,6 +410,7 @@ main() {
     version|-v|--version) cmd_version "$@" ;;
     help|--help|-h) usage ;;
     now)           cmd_now "$@" ;;
+    hotkey)        cmd_hotkey "$@" ;;
     *) t unknown_cmd "$cmd" >&2; echo >&2; usage >&2; exit 1 ;;
   esac
 }

@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-06-26
+
+### Added
+- **`panic hotkey`** — глобальный хоткей паники через [`skhd`](https://github.com/koekeishiya/skhd):
+  `install [combo]` / `uninstall` / `status`. По умолчанию `cmd + alt - p` → `panic now`.
+  Биндинг живёт в managed-блоке `skhdrc` (чужие skhd-биндинги не трогает). Честно: чистый
+  Bash глобальный хоткей на macOS невозможен — нужен резидентный слушатель с правом
+  Accessibility, поэтому используем skhd (`brew install skhd`). Windows-хоткей пока не подключён.
+- Тесты: +8 bats (`test/hotkey.bats`) + skhd-стаб.
+
 ## [0.1.3] — 2026-06-25
 
 Первый выпуск с поддержкой Windows.
@@ -75,7 +85,9 @@
   `PANIC_SFL_DIR` overrides.
 - Real-device smoke на macOS: `now` распарсил живой `hdiutil info` и размонтировал тест-образ.
 
-[Unreleased]: https://github.com/Di-kairos/panic/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Di-kairos/panic/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/Di-kairos/panic/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/Di-kairos/panic/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Di-kairos/panic/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Di-kairos/panic/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Di-kairos/panic/releases/tag/v0.1.0

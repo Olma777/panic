@@ -50,11 +50,13 @@ moving `main` branch) and verifies the hash **before** installing. Environment v
 ## Usage
 
 ```bash
-panic status        # read-only preflight: show what `panic now` would affect
-panic now           # hide & lock now
-panic now --hard    # + kill cloud daemons, clear Recent items
-panic version       # print the version (also -v / --version)
-panic --help        # print usage (also -h / help)
+panic status            # read-only preflight: show what `panic now` would affect
+panic now               # hide & lock now
+panic now --hard        # + kill cloud daemons, clear Recent items
+panic hotkey install    # bind a global hotkey (cmd + alt - p) to `panic now`
+panic hotkey status     # show / uninstall the hotkey
+panic version           # print the version (also -v / --version)
+panic --help            # print usage (also -h / help)
 ```
 
 The explicit `now` verb is deliberate: a kill-switch must not fire from an accidental
@@ -69,7 +71,26 @@ What `panic now` does:
 With `--hard` it additionally kills cloud daemons (Dropbox, OneDrive, iCloud's `bird`,
 Google Drive) and clears the global Recent items (shared file lists).
 
-Wire `panic now` to a hotkey via launchd for true one-step activation.
+### Global hotkey
+
+For true one-step activation, bind a system-wide hotkey to `panic now`:
+
+```bash
+panic hotkey install                 # default: cmd + alt - p
+panic hotkey install "cmd + shift - escape"   # or pick your own combo
+panic hotkey status                  # show the current binding
+panic hotkey uninstall               # remove it
+```
+
+A real global hotkey on macOS needs a resident listener with Accessibility permission —
+pure Bash can't do it. `panic hotkey` uses [`skhd`](https://github.com/koekeishiya/skhd),
+a tiny hotkey daemon (`brew install skhd`). The binding lives in a clearly-marked managed
+block of your `skhdrc`, so your own skhd bindings are left untouched. On first trigger,
+grant skhd access under **System Settings → Privacy & Security → Accessibility**, or the
+hotkey won't fire.
+
+> On Windows the global hotkey is not wired yet — run `panic now` directly (a native
+> hotkey is planned).
 
 ## How it works
 

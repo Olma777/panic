@@ -47,11 +47,13 @@ curl -fsSL https://github.com/Di-kairos/panic/releases/latest/download/install.s
 ## Использование
 
 ```bash
-panic status        # только чтение: предпросмотр — что затронет `panic now`
-panic now           # спрятать и запереть сейчас
-panic now --hard    # + прибить cloud-демоны, почистить «Recent items»
-panic version       # показать версию (также -v / --version)
-panic --help        # показать справку (также -h / help)
+panic status            # только чтение: предпросмотр — что затронет `panic now`
+panic now               # спрятать и запереть сейчас
+panic now --hard        # + прибить cloud-демоны, почистить «Recent items»
+panic hotkey install    # повесить глобальный хоткей (cmd + alt - p) на `panic now`
+panic hotkey status     # показать / снять хоткей
+panic version           # показать версию (также -v / --version)
+panic --help            # показать справку (также -h / help)
 ```
 
 Явный verb `now` выбран намеренно: kill-switch не должен срабатывать от случайного
@@ -66,7 +68,25 @@ panic --help        # показать справку (также -h / help)
 С флагом `--hard` дополнительно: прибивает cloud-демоны (Dropbox, OneDrive, iCloud `bird`,
 Google Drive) и чистит глобальные Recent items (shared file lists).
 
-Хоткей через launchd — повесьте `panic now` на горячую клавишу для срабатывания в один шаг.
+### Глобальный хоткей
+
+Чтобы срабатывало в один шаг, повесь `panic now` на системную горячую клавишу:
+
+```bash
+panic hotkey install                 # по умолчанию: cmd + alt - p
+panic hotkey install "cmd + shift - escape"   # или своя комбинация
+panic hotkey status                  # показать текущий биндинг
+panic hotkey uninstall               # снять
+```
+
+Настоящий глобальный хоткей на macOS требует резидентного слушателя с правом Accessibility —
+на чистом Bash это невозможно. `panic hotkey` использует [`skhd`](https://github.com/koekeishiya/skhd),
+крошечный hotkey-демон (`brew install skhd`). Биндинг лежит в явно помеченном managed-блоке
+твоего `skhdrc`, так что твои собственные skhd-биндинги не затрагиваются. При первом срабатывании
+выдай skhd доступ в **System Settings → Privacy & Security → Accessibility**, иначе хоткей не сработает.
+
+> На Windows глобальный хоткей пока не подключён — запускай `panic now` напрямую (нативный
+> хоткей запланирован).
 
 ## Архитектура
 
