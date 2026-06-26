@@ -45,7 +45,8 @@ moving `main` branch) and verifies the hash **before** installing. Environment v
 > `SHA256SUMS` published in the *same release* — it catches corruption, partial/cached
 > tampering, and stops you running code off the moving `main` branch. It does **not** by
 > itself defeat an attacker who can rewrite *both* the binary and its checksum at the
-> source, nor does it prove *who* published them. For that you need a signature.
+> source, nor does it prove *who* published them. For that you need a signature. Pin a
+> specific version with `PANIC_VERSION=0.1.4` instead of `latest` for reproducibility.
 
 ## Usage
 
