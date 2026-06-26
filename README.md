@@ -13,7 +13,7 @@ One-step kill-switch — hide and lock everything with a single command.
 Part of the [Paranoid Tools](https://github.com/Di-kairos/paranoid-tools) ecosystem.
 
 The scenario: a border crossing, coercion, "someone's coming." A single
-`panic now` (or a hotkey wired through launchd) **hides and locks** everything:
+`panic now` (or a global hotkey via `panic hotkey`) **hides and locks** everything:
 closes open securetrash vaults, detaches volumes, clears the clipboard, locks the
 screen.
 
