@@ -63,3 +63,23 @@ run_now() { run env PATH="$STUBS:$PATH" PANIC_CGSESSION="$STUBS/cgsession" bash 
   [[ "$output" == *"clipboard"* ]] || [[ "$output" == *"буфер"* ]]
   [[ "$output" == *"lock"* ]] || [[ "$output" == *"заперт"* ]] || [[ "$output" == *"экран"* ]]
 }
+
+# --- честность блокировки (regression: раньше CGSession падал молча, а отчёт врал «locked») ---
+
+@test "now falls back to osascript Ctrl+Cmd+Q when CGSession is missing" {
+  STUB_MOUNTS="" run env PATH="$STUBS:$PATH" \
+    PANIC_CGSESSION="$TMP/nonexistent-cgsession" PANIC_OSASCRIPT="$STUBS/osascript" \
+    bash "$SCRIPT" now
+  [ "$status" -eq 0 ]
+  grep -qF -- "osascript" "$VW_STUB_LOG"
+  [[ "$output" == *"locked"* ]] || [[ "$output" == *"заблокирован"* ]]
+}
+
+@test "now honestly warns when the screen could NOT be locked" {
+  STUB_MOUNTS="" run env PATH="$STUBS:$PATH" \
+    PANIC_CGSESSION="$TMP/nonexistent-cgsession" PANIC_OSASCRIPT="$STUBS/osascript" OSASCRIPT_EXIT=1 \
+    bash "$SCRIPT" now
+  [ "$status" -eq 0 ]                       # паника не падает, даже если лок не удался
+  [[ "$output" == *"could NOT lock"* ]] || [[ "$output" == *"НЕ удалось заблокировать"* ]]
+  [[ "$output" != *"screen locked"* ]]      # и НЕ врёт про успех
+}

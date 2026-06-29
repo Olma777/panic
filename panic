@@ -13,10 +13,12 @@ set -euo pipefail
 
 VERSION="0.1.5"
 
-# Локер экрана. По умолчанию CGSession -suspend (реальная блокировка до login-window,
-# не зависит от настройки «требовать пароль» — в отличие от pmset/screensaver).
-# Переопределяемо (тесты/иные механизмы блокировки).
+# Локер экрана. Метод 1 — CGSession -suspend (login-window switch, не зависит от настройки
+# «требовать пароль»); бандл Menu Extras удалён в свежих macOS (≥12), поэтому это лишь legacy-путь.
+# Метод 2 (fallback) — Ctrl+Cmd+Q через osascript (современный macOS; нужен Accessibility-доступ
+# хост-приложению). Оба переопределяемы для тестов. _lock_screen честно возвращает статус.
 PANIC_CGSESSION="${PANIC_CGSESSION:-/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession}"
+PANIC_OSASCRIPT="${PANIC_OSASCRIPT:-/usr/bin/osascript}"
 
 # Каталог shared file lists (Recent items). Переопределяемо для тестов.
 PANIC_SFL_DIR="${PANIC_SFL_DIR:-${HOME}/Library/Application Support/com.apple.sharedfilelist}"
@@ -202,8 +204,12 @@ EOF
     ru:detach_fail) printf 'не удалось размонтировать %s (возможно, открыты файлы).' "$1" ;;
     en:now_hard) echo 'panic --hard: cloud daemons killed, recent items cleared.' ;;
     ru:now_hard) echo 'panic --hard: cloud-демоны убиты, recent items очищены.' ;;
-    en:now_report) printf 'panic: detached %s disk image(s), cleared clipboard, locked screen.' "$1" ;;
-    ru:now_report) printf 'panic: размонтировано образов: %s, буфер очищен, экран заперт.' "$1" ;;
+    en:now_report) printf 'panic: detached %s disk image(s), cleared clipboard.' "$1" ;;
+    ru:now_report) printf 'panic: размонтировано образов: %s, буфер очищен.' "$1" ;;
+    en:lock_ok)    echo 'screen locked.' ;;
+    ru:lock_ok)    echo 'экран заблокирован.' ;;
+    en:lock_fail)  echo 'could NOT lock the screen — lock it now (Ctrl+Cmd+Q). Grant Accessibility to your terminal so panic can lock it next time.' ;;
+    ru:lock_fail)  echo 'НЕ удалось заблокировать экран — запри сам (Ctrl+Cmd+Q). Дай терминалу доступ Accessibility, чтобы panic запирал в следующий раз.' ;;
     en:hk_no_skhd) echo 'skhd not found. Install it: brew install skhd (a tiny global-hotkey daemon).' ;;
     ru:hk_no_skhd) echo 'skhd не найден. Установи: brew install skhd (крошечный демон глобальных хоткеев).' ;;
     en:hk_installed) printf 'Global hotkey set: %s → panic now.' "$1" ;;
@@ -234,8 +240,20 @@ _mounted_images() {
 }
 
 # Блокировка экрана через настраиваемый локер.
+# Заблокировать экран. Возвращает 0 ТОЛЬКО если блокировка реально инициирована — иначе
+# cmd_now честно сообщит, что экран НЕ заперт (а не соврёт «locked screen», как раньше при
+# молча падавшем CGSession на современных macOS). Методы по убыванию надёжности.
 _lock_screen() {
-  "$PANIC_CGSESSION" -suspend >/dev/null 2>&1 || true
+  if [[ -x "$PANIC_CGSESSION" ]] && "$PANIC_CGSESSION" -suspend >/dev/null 2>&1; then
+    return 0
+  fi
+  # Ctrl+Cmd+Q — системный лок на современном macOS. Без Accessibility-доступа osascript
+  # вернёт ошибку → честно НЕ считаем за успех.
+  if [[ -x "$PANIC_OSASCRIPT" ]] && \
+     "$PANIC_OSASCRIPT" -e 'tell application "System Events" to keystroke "q" using {control down, command down}' >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
 }
 
 # --hard: прибить известные cloud-демоны (best-effort, отсутствие процесса — не ошибка).
@@ -273,9 +291,10 @@ cmd_now() {
     fi
   done < <(_mounted_images)
 
-  # 2. Очистить буфер обмена. 3. Заблокировать экран.
+  # 2. Очистить буфер обмена. 3. Заблокировать экран (статус — для честного отчёта).
   pbcopy </dev/null >/dev/null 2>&1 || true
-  _lock_screen
+  local locked=0
+  if _lock_screen; then locked=1; fi
 
   # 4. --hard: прибить cloud-демоны + почистить Recent items.
   if [[ "$hard" == "1" ]]; then
@@ -284,6 +303,7 @@ cmd_now() {
   fi
 
   info "$(t now_report "$n")"
+  if [[ "$locked" == "1" ]]; then info "$(t lock_ok)"; else warn "$(t lock_fail)"; fi
   if [[ "$hard" == "1" ]]; then info "$(t now_hard)"; fi
 }
 
