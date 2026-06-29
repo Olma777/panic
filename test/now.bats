@@ -83,3 +83,22 @@ run_now() { run env PATH="$STUBS:$PATH" PANIC_CGSESSION="$STUBS/cgsession" bash 
   [[ "$output" == *"could NOT lock"* ]] || [[ "$output" == *"НЕ удалось заблокировать"* ]]
   [[ "$output" != *"screen locked"* ]]      # и НЕ врёт про успех
 }
+
+@test "now falls back to osascript when CGSession exists but returns non-zero" {
+  # CGSession-бинарь есть, но -suspend упал (CGSESSION_EXIT=1) → обязан уйти в osascript.
+  STUB_MOUNTS="" run env PATH="$STUBS:$PATH" \
+    PANIC_CGSESSION="$STUBS/cgsession" CGSESSION_EXIT=1 PANIC_OSASCRIPT="$STUBS/osascript" \
+    bash "$SCRIPT" now
+  [ "$status" -eq 0 ]
+  grep -qF -- "osascript" "$VW_STUB_LOG"     # fallback реально вызван
+  [[ "$output" == *"locked"* ]] || [[ "$output" == *"заблокирован"* ]]
+}
+
+@test "now exit code survives a closed pipe (no SIGPIPE 141 from multi-line report)" {
+  # Регрессия: второй stdout-строкой отчёта (lock_ok) под pipefail `panic now | head -n1`
+  # ронял exit в 141, хотя паника успешна. Отчёт best-effort → pipeline status 0.
+  STUB_MOUNTS="/Volumes/SecretVault" run env PATH="$STUBS:$PATH" \
+    PANIC_CGSESSION="$STUBS/cgsession" \
+    bash -o pipefail -c '"'"$SCRIPT"'" now | head -n1'
+  [ "$status" -eq 0 ]
+}

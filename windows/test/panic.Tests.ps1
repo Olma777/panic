@@ -78,13 +78,15 @@ Describe 'panic now — orchestration' {
         ($out -join "`n") | Should -Match 'screen locked'
     }
 
-    It 'does NOT claim a locked screen when the lock fails' {
-        # Зеркало bash-регрессии: LockWorkStation упал → не врём «locked».
-        # (Сам warn идёт в stderr через [Console]::Error и тут не ловится — проверяем
-        # главное: ложного «screen locked.» в stdout нет.)
+    It 'does NOT claim a locked screen when the lock fails — and warns instead' {
+        # Зеркало bash-регрессии: LockWorkStation упал → не врём «locked», а громко warn.
+        # warn идёт в stderr через [Console]::Error (не ловится $out), поэтому мокаем
+        # Write-PnWarn и проверяем сам факт честного предупреждения с текстом lock_fail.
         Mock Invoke-PnLockScreen { $false }
+        Mock Write-PnWarn { }
         $out = Invoke-PnNow -ArgList @()
         ($out -join "`n") | Should -Not -Match 'screen locked\.'
+        Should -Invoke Write-PnWarn -Times 1 -Exactly -ParameterFilter { $Msg -match 'could NOT lock' }
     }
 }
 

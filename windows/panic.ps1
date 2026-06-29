@@ -171,12 +171,19 @@ function Test-PnClipboardNonEmpty {
     } catch { return $false }
 }
 
-# Заблокировать экран до экрана входа (зеркало _lock_screen). Честно возвращает статус:
-# LockWorkStation надёжен, но если rundll32 отсутствует/упал — не врём, что заперли.
+# Заблокировать экран до экрана входа (зеркало _lock_screen). Честно возвращает статус.
+# P/Invoke user32!LockWorkStation вместо `rundll32 ...,LockWorkStation`: exit-код rundll32 —
+# это статус helper-процесса, а НЕ результат лока (мог вернуть 0, даже если лок не принят).
+# LockWorkStation возвращает bool самого API → честный сигнал «запрос на лок принят».
 function Invoke-PnLockScreen {
     try {
-        & rundll32.exe 'user32.dll,LockWorkStation' 2>$null
-        return ($LASTEXITCODE -eq 0)
+        if (-not ('PnNative.User32' -as [type])) {
+            Add-Type -Namespace PnNative -Name User32 -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+public static extern bool LockWorkStation();
+'@
+        }
+        return [bool][PnNative.User32]::LockWorkStation()
     } catch { return $false }
 }
 

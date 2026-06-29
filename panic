@@ -302,9 +302,14 @@ cmd_now() {
     _clear_recent_items
   fi
 
-  info "$(t now_report "$n")"
-  if [[ "$locked" == "1" ]]; then info "$(t lock_ok)"; else warn "$(t lock_fail)"; fi
-  if [[ "$hard" == "1" ]]; then info "$(t now_hard)"; fi
+  # Пост-отчёт — best-effort: под `set -euo pipefail` многострочный вывод в закрытый pipe
+  # (`panic now | head -n1`) даёт SIGPIPE→141, хотя паника уже отработала. Отчёт не должен
+  # ронять exit-код успешной паники: `trap '' PIPE` гасит сигнал (echo вернёт EPIPE, а не
+  # умрёт), а `|| true` страхует от set -e на этом возврате. Это последнее действие cmd_now.
+  trap '' PIPE
+  info "$(t now_report "$n")" || true
+  if [[ "$locked" == "1" ]]; then info "$(t lock_ok)" || true; else warn "$(t lock_fail)" || true; fi
+  if [[ "$hard" == "1" ]]; then info "$(t now_hard)" || true; fi
 }
 
 cmd_status() {
