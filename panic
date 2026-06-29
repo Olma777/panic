@@ -11,7 +11,7 @@
 # в следующих паках; см. README «Scope & limitations».
 set -euo pipefail
 
-VERSION="0.1.5"
+VERSION="0.1.6"
 
 # Локер экрана. Метод 1 — CGSession -suspend (login-window switch, не зависит от настройки
 # «требовать пароль»); бандл Menu Extras удалён в свежих macOS (≥12), поэтому это лишь legacy-путь.

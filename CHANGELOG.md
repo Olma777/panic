@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-06-29
+
+### Fixed
+- **Честная блокировка экрана.** Раньше `panic now` всегда печатал «locked screen», даже
+  когда лок молча падал: на macOS ≥12 legacy-бандл `CGSession` удалён. Теперь `_lock_screen`
+  пробует `CGSession -suspend` → fallback Ctrl+Cmd+Q через `osascript` и **возвращает статус**;
+  отчёт говорит «screen locked.» только по факту, иначе громко предупреждает (нужен
+  Accessibility-доступ терминалу). Override: `PANIC_CGSESSION` / `PANIC_OSASCRIPT`.
+- **Windows-зеркало честности.** PowerShell-порт больше не утверждает «locked screen» вслепую:
+  `Invoke-PnLockScreen` перешёл с `rundll32 ...,LockWorkStation` (exit-код helper-процесса,
+  не лока) на P/Invoke `user32!LockWorkStation` — честный bool API; при провале — warn, не ложь.
+- **SIGPIPE на `panic now | head`.** Многострочный пост-отчёт под `set -euo pipefail` ронял
+  exit-код успешной паники в 141 при закрытом потребителем pipe. Отчёт сделан best-effort
+  (`trap '' PIPE` + `|| true`).
+
 ## [0.1.5] — 2026-06-26
 
 ### Changed
